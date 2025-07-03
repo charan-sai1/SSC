@@ -1,650 +1,480 @@
-import React, { useState, useEffect, useRef } from 'react';
-import Chart from 'chart.js/auto';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement } from 'chart.js';
+import { Bar, Doughnut, Pie } from 'react-chartjs-2';
 
-const App = () => {
-    const [activeTab, setActiveTab] = useState('overview');
-    const [populationChartType, setPopulationChartType] = useState('top');
-    const [densityChartType, setDensityChartType] = useState('top');
-    const [literacyChartType, setLiteracyChartType] = useState('top');
-    const [sexRatioChartType, setSexRatioChartType] = useState('top');
+// Registering Chart.js components
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend, ArcElement);
 
-    const populationChartRef = useRef(null);
-    const densityChartRef = useRef(null);
-    const literacyChartRef = useRef(null);
-    const sexRatioChartRef = useRef(null);
-    const ruralUrbanChartRef = useRef(null);
-    const religionChartRef = useRef(null);
-    const scstChartRef = useRef(null);
-
-    const populationChartInstance = useRef(null);
-    const densityChartInstance = useRef(null);
-    const literacyChartInstance = useRef(null);
-    const sexRatioChartInstance = useRef(null);
-    const ruralUrbanChartInstance = useRef(null);
-    const religionChartInstance = useRef(null);
-    const scstChartInstance = useRef(null);
-
-    const censusData = {
-        population: {
-            top: [
-                { state: 'Uttar Pradesh', value: 199.8, info: 'Most populous state, accounting for 16.5% of India.' },
-                { state: 'Maharashtra', value: 112.4, info: 'Second most populous, a major economic hub.' },
-                { state: 'Bihar', value: 104.1, info: 'Third most populous, with the highest density.' },
-                { state: 'West Bengal', value: 91.3, info: 'Fourth most populous, strategically located.' },
-                { state: 'Madhya Pradesh', value: 72.6, info: 'Fifth most populous, in the heart of India.' }
-            ],
-            bottom: [
-                { state: 'Sikkim', value: 0.61, info: 'Least populous state in India.' },
-                { state: 'Mizoram', value: 1.10, info: 'Second least populous, high literacy.' },
-                { state: 'Arunachal Pradesh', value: 1.38, info: 'Sparsely populated with lowest density.' },
-                { state: 'Goa', value: 1.46, info: 'Smallest state by area, highly urbanized.' },
-                { state: 'Nagaland', value: 1.98, info: 'Recorded negative population growth.' }
-            ]
+// --- Data ---
+// The main data object for the census. In a larger app, this would be fetched from an API.
+const censusData = {
+    population: {
+        most: {
+            labels: ['Uttar Pradesh', 'Maharashtra', 'Bihar', 'West Bengal', 'Madhya Pradesh'],
+            data: [199.8, 112.4, 104.1, 91.3, 72.6],
+            info: 'Uttar Pradesh was the most populous state with nearly 200 million people.'
         },
-        density: {
-            top: [
-                { state: 'Delhi (UT)', value: 11297, info: 'Highest density UT, a megacity.' },
-                { state: 'Bihar', value: 1106, info: 'Highest density among states.' },
-                { state: 'West Bengal', value: 1028, info: 'Very high density, fertile plains.' },
-                { state: 'Kerala', value: 860, info: 'High density despite coastal and hilly terrain.' },
-                { state: 'Uttar Pradesh', value: 829, info: 'High density due to large population.' }
-            ],
-            bottom: [
-                { state: 'Arunachal Pradesh', value: 17, info: 'Lowest density in India due to terrain.' },
-                { state: 'Andaman & Nicobar', value: 46, info: 'Island territory with sparse population.' },
-                { state: 'Mizoram', value: 52, info: 'Low density, hilly northeastern state.' },
-                { state: 'Sikkim', value: 86, info: 'Mountainous state with low population density.' },
-                { state: 'Nagaland', value: 119, info: 'Low density, hilly terrain.' }
-            ]
+        least: {
+            labels: ['Nagaland', 'Goa', 'Arunachal Pradesh', 'Mizoram', 'Sikkim'],
+            data: [1.97, 1.45, 1.38, 1.09, 0.61],
+            info: 'Sikkim was the least populous state. Notably, Nagaland recorded a negative population growth rate.'
         },
-        literacy: {
-            top: [
-                { state: 'Kerala', value: 94.0, male: 96.1, female: 92.1, info: 'Highest literacy for overall, male, and female.' },
-                { state: 'Lakshadweep (UT)', value: 91.8, male: 95.6, female: 87.9, info: 'Highest literacy UT.' },
-                { state: 'Mizoram', value: 91.3, male: 93.3, female: 89.3, info: 'Very high literacy in the Northeast.' },
-                { state: 'Goa', value: 88.7, male: 92.6, female: 84.7, info: 'High literacy, popular tourist state.' },
-                { state: 'Tripura', value: 87.2, male: 91.5, female: 82.7, info: 'Another high literacy state from the Northeast.' }
-            ],
-            bottom: [
-                { state: 'Bihar', value: 61.8, male: 71.2, female: 51.5, info: 'Lowest literacy state, significant gender gap.' },
-                { state: 'Arunachal Pradesh', value: 65.4, male: 72.6, female: 57.7, info: 'Low literacy, challenging terrain.' },
-                { state: 'Rajasthan', value: 66.1, male: 79.2, female: 52.1, info: 'Low female literacy is a key issue.' },
-                { state: 'Jharkhand', value: 66.4, male: 76.8, female: 55.4, info: 'Faces challenges in educational outreach.' },
-                { state: 'Andhra Pradesh', value: 67.0, male: 74.9, female: 59.1, info: 'Literacy below the national average.' }
-            ]
+        densityHigh: {
+            labels: ['Delhi (UT)', 'Chandigarh (UT)', 'Puducherry (UT)', 'Bihar (State)', 'West Bengal (State)'],
+            data: [11320, 9258, 2547, 1106, 1028],
+            info: 'Among states, Bihar had the highest population density, while the NCT of Delhi had the highest overall.'
         },
+        densityLow: {
+            labels: ['Ladakh (UT)', 'A & N Islands (UT)', 'Mizoram', 'Sikkim', 'Arunachal Pradesh'].reverse(),
+            data: [4.6, 46, 52, 86, 17].reverse(),
+            info: 'Arunachal Pradesh had the lowest population density with just 17 persons per square kilometer.'
+        }
+    },
+    genderLiteracy: {
         sexRatio: {
-            top: [
-                { state: 'Kerala', value: 1084, child: 964, info: 'Only state with more women than men.' },
-                { state: 'Puducherry (UT)', value: 1037, child: 967, info: 'Highest sex ratio among UTs.' },
-                { state: 'Tamil Nadu', value: 996, child: 943, info: 'Healthy sex ratio in the south.' },
-                { state: 'Andhra Pradesh', value: 993, child: 939, info: 'Balanced sex ratio.' },
-                { state: 'Chhattisgarh', value: 991, child: 969, info: 'High sex ratio in central India.' }
+            labels: ['Daman & Diu', 'Haryana', 'Gujarat', 'Bihar', 'Puducherry', 'Kerala'],
+            data: [618, 879, 919, 918, 1038, 1084],
+            info: 'Kerala had the highest sex ratio (1084), while Daman & Diu had the lowest (618). Haryana was the lowest among states.'
+        },
+        childSexRatio: {
+            labels: ['Haryana', 'Punjab', 'J&K', 'Delhi', 'Meghalaya', 'Mizoram'],
+            data: [830, 846, 862, 871, 970, 971],
+            info: 'The national child sex ratio declined to 914. Mizoram had the highest (971) while Haryana had the lowest (830).'
+        },
+        literacyRate: {
+            labels: ['Bihar', 'Arunachal Pradesh', 'Rajasthan', 'Goa', 'Mizoram', 'Kerala'],
+            data: [61.8, 65.4, 66.1, 88.7, 91.3, 94.0],
+            info: 'Kerala achieved the highest literacy rate (94%), whereas Bihar had the lowest (61.8%).'
+        },
+        maleFemaleLiteracy: {
+            labels: ['India', 'Kerala', 'Bihar', 'Rajasthan'],
+            datasets: [
+                { label: 'Male Literacy %', data: [80.9, 96.1, 71.2, 79.2], backgroundColor: 'rgba(54, 162, 235, 0.7)'},
+                { label: 'Female Literacy %', data: [64.6, 92.1, 51.5, 52.1], backgroundColor: 'rgba(255, 99, 132, 0.7)'}
             ],
-            bottom: [
-                { state: 'Daman & Diu (UT)', value: 618, child: 904, info: 'Alarmingly low sex ratio, lowest in India.' },
-                { state: 'Dadra & Nagar Haveli', value: 774, child: 926, info: 'Very low sex ratio.' },
-                { state: 'Chandigarh (UT)', value: 818, child: 880, info: 'Low sex ratio in a planned city.' },
-                { state: 'Delhi (NCT)', value: 868, child: 871, info: 'Low sex ratio in the national capital.' },
-                { state: 'Haryana', value: 879, child: 834, info: 'Lowest sex ratio among states, also lowest child sex ratio.' }
-            ]
-        },
-        scst: {
-            labels: ['Punjab (SC %)', 'Mizoram (ST %)', 'UP (Highest SC Pop.)', 'MP (Highest ST Pop.)'],
-            sc_percent: [31.9, 0, 20.7, 15.6],
-            st_percent: [0, 94.4, 0.6, 21.1],
-        },
-        ruralUrban: {
-            labels: ['Rural Population', 'Urban Population'],
-            data: [68.84, 31.16],
-        },
+            info: 'The gender gap in literacy is narrowing but remains significant. The gap is smallest in states like Kerala and widest in states like Bihar and Rajasthan.'
+        }
+    },
+    socioEconomic: {
         religion: {
-            labels: ['Hinduism', 'Islam', 'Christianity', 'Sikhism', 'Buddhism', 'Jainism', 'Others'],
-            data: [79.8, 14.2, 2.3, 1.7, 0.7, 0.4, 0.9],
+            labels: ['Hindus', 'Muslims', 'Christians', 'Sikhs', 'Buddhists', 'Jains', 'Others/Not Stated'],
+            data: [79.8, 14.2, 2.3, 1.7, 0.7, 0.4, 0.9]
+        },
+        language: {
+            labels: ['Hindi', 'Bengali', 'Marathi', 'Telugu', 'Tamil'],
+            data: [43.63, 8.03, 6.86, 6.70, 5.70]
         }
+    },
+    ruralUrban: {
+        labels: ['Rural Population', 'Urban Population'],
+        data: [68.8, 31.2]
+    }
+};
+
+// --- Reusable Components ---
+
+// A wrapper for the main content sections to keep the code DRY
+const ContentSection = ({ title, description, children }) => (
+    <div>
+        <h2 className="text-3xl font-bold mb-2 text-stone-700">{title}</h2>
+        <p className="text-stone-600 mb-6">{description}</p>
+        {children}
+    </div>
+);
+
+// A reusable card component for displaying key stats
+const StatCard = ({ title, value, subtext, colorClass }) => (
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+        <h3 className="text-lg font-semibold text-stone-500">{title}</h3>
+        <p className={`text-4xl font-bold ${colorClass}`}>{value}</p>
+        <p className="text-sm text-stone-500 mt-2">{subtext}</p>
+    </div>
+);
+
+// --- Main Section Components ---
+
+const OverviewSection = () => (
+    <ContentSection
+        title="National Overview"
+        description="This section provides a snapshot of India's key demographic figures from the 2011 Census. These are the most fundamental and frequently tested numbers, forming the foundation of your census knowledge."
+    >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <StatCard title="Total Population" value="1.21 Billion" subtext="17.64% decadal growth" colorClass="text-teal-600" />
+            <StatCard title="Population Density" value="382" subtext="persons per sq. km." colorClass="text-amber-600" />
+            <StatCard title="Overall Sex Ratio" value="940" subtext="females per 1000 males" colorClass="text-rose-600" />
+            <StatCard title="Literacy Rate" value="74.04%" subtext="Up from 64.83% in 2001" colorClass="text-sky-600" />
+        </div>
+        <div className="mt-8 bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+            <h3 className="text-xl font-bold mb-4 text-stone-700">Administrative Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                <div>
+                    <p className="text-lg font-semibold text-stone-500">Census Commissioner</p>
+                    <p className="text-xl font-bold text-teal-600">Shri C. Chandramouli</p>
+                </div>
+                <div>
+                    <p className="text-lg font-semibold text-stone-500">Motto</p>
+                    <p className="text-xl font-bold text-teal-600">Our Census, Our Future</p>
+                </div>
+                <div>
+                    <p className="text-lg font-semibold text-stone-500">Phases</p>
+                    <p className="text-xl font-bold text-teal-600">Two Phases</p>
+                    <p className="text-sm text-stone-500">(Houselisting & Population Enumeration)</p>
+                </div>
+            </div>
+        </div>
+    </ContentSection>
+);
+
+const PopulationSection = () => {
+    const [chartType, setChartType] = useState('most');
+    const chartData = censusData.population[chartType];
+
+    const data = {
+        labels: chartData.labels,
+        datasets: [{
+            label: 'Population (in millions for pop., per sq.km for density)',
+            data: chartData.data,
+            backgroundColor: 'rgba(13, 148, 136, 0.7)',
+            borderColor: 'rgba(13, 148, 136, 1)',
+            borderWidth: 1
+        }]
     };
 
-    const renderPopulationChart = (type) => {
-        if (populationChartInstance.current) {
-            populationChartInstance.current.destroy();
-        }
-        const data = censusData.population[type];
-        const ctx = populationChartRef.current.getContext('2d');
-        populationChartInstance.current = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: data.map(d => d.state),
-                datasets: [{
-                    label: 'Population (in millions)',
-                    data: data.map(d => d.value),
-                    backgroundColor: '#14B8A6',
-                    borderColor: '#0F766E',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                indexAxis: 'y',
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => `${context.raw.toFixed(2)} million`
-                        }
-                    }
-                },
-                onHover: (event, chartElement) => {
-                    const infoP = document.getElementById('populationChartInfo');
-                    if (chartElement.length) {
-                        const index = chartElement[0].index;
-                        infoP.textContent = data[index].info;
-                    } else {
-                        infoP.textContent = "Hover over a bar to see details.";
-                    }
-                },
-                scales: {
-                    x: { beginAtZero: true }
-                }
-            }
-        });
+    const options = {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true } }
     };
 
-    const renderDensityChart = (type) => {
-        if (densityChartInstance.current) {
-            densityChartInstance.current.destroy();
-        }
-        const data = censusData.density[type];
-        const ctx = densityChartRef.current.getContext('2d');
-        densityChartInstance.current = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: data.map(d => d.state),
-                datasets: [{
-                    label: 'Persons / km²',
-                    data: data.map(d => d.value),
-                    backgroundColor: '#F97316',
-                    borderColor: '#B45309',
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                indexAxis: 'y',
-                 plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => `${context.raw} persons/km²`
-                        }
-                    }
-                },
-                onHover: (event, chartElement) => {
-                    const infoP = document.getElementById('densityChartInfo');
-                    if (chartElement.length) {
-                        const index = chartElement[0].index;
-                        infoP.textContent = data[index].info;
-                    } else {
-                         infoP.textContent = "Hover over a bar to see details.";
-                    }
-                },
-                scales: {
-                    x: {
-                        beginAtZero: true,
-                        type: 'logarithmic',
-                    }
-                }
-            }
-        });
-    };
-
-    const renderLiteracyChart = (type) => {
-        if (literacyChartInstance.current) {
-            literacyChartInstance.current.destroy();
-        }
-        const data = censusData.literacy[type];
-        const ctx = literacyChartRef.current.getContext('2d');
-        literacyChartInstance.current = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: data.map(d => d.state),
-                datasets: [
-                    {
-                        label: 'Male Literacy',
-                        data: data.map(d => d.male),
-                        backgroundColor: '#3B82F6',
-                        borderWidth: 1
-                    },
-                    {
-                        label: 'Female Literacy',
-                        data: data.map(d => d.female),
-                        backgroundColor: '#F472B6',
-                        borderWidth: 1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                indexAxis: 'y',
-                plugins: {
-                    legend: { position: 'bottom' },
-                     tooltip: {
-                        callbacks: {
-                            label: (context) => `${context.dataset.label}: ${context.raw}%`
-                        }
-                    }
-                },
-                 onHover: (event, chartElement) => {
-                    const infoP = document.getElementById('literacyChartInfo');
-                    if (chartElement.length) {
-                        const index = chartElement[0].index;
-                        infoP.textContent = data[index].info;
-                    } else {
-                        infoP.textContent = "Hover over a bar to see gender-wise breakdown.";
-                    }
-                },
-                scales: {
-                    x: {
-                        beginAtZero: false,
-                        min: 45,
-                        max: 100
-                    }
-                }
-            }
-        });
-    };
-
-    const renderSexRatioChart = (type) => {
-        if (sexRatioChartInstance.current) {
-            sexRatioChartInstance.current.destroy();
-        }
-        const data = censusData.sexRatio[type];
-        const ctx = sexRatioChartRef.current.getContext('2d');
-        sexRatioChartInstance.current = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: data.map(d => d.state),
-                datasets: [
-                     {
-                        label: 'Overall Sex Ratio',
-                        data: data.map(d => d.value),
-                        backgroundColor: '#10B981',
-                        borderWidth: 1
-                    },
-                    {
-                        label: 'Child Sex Ratio (0-6)',
-                        data: data.map(d => d.child),
-                        backgroundColor: '#EF4444',
-                        borderWidth: 1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                indexAxis: 'y',
-                plugins: {
-                    legend: { position: 'bottom' },
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => `${context.dataset.label}: ${context.raw}`
-                        }
-                    }
-                },
-                onHover: (event, chartElement) => {
-                    const infoP = document.getElementById('sexRatioChartInfo');
-                    if (chartElement.length) {
-                        const index = chartElement[0].index;
-                        infoP.textContent = data[index].info;
-                    } else {
-                        infoP.textContent = "Hover over a bar to see child sex ratio.";
-                    }
-                },
-                 scales: {
-                    x: {
-                        beginAtZero: false,
-                        min: 600
-                    }
-                }
-            }
-        });
-    };
-
-     const renderRuralUrbanChart = () => {
-        if (ruralUrbanChartInstance.current) {
-            ruralUrbanChartInstance.current.destroy();
-        }
-        const ctx = ruralUrbanChartRef.current.getContext('2d');
-        ruralUrbanChartInstance.current = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: censusData.ruralUrban.labels,
-                datasets: [{
-                    data: censusData.ruralUrban.data,
-                    backgroundColor: ['#16A34A', '#EA580C'],
-                    hoverOffset: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom' },
-                    tooltip: { callbacks: { label: (c) => `${c.label}: ${c.raw}%` } }
-                }
-            }
-        });
-    };
-
-    const renderReligionChart = () => {
-        if (religionChartInstance.current) {
-            religionChartInstance.current.destroy();
-        }
-        const ctx = religionChartRef.current.getContext('2d');
-        religionChartInstance.current = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: censusData.religion.labels,
-                datasets: [{
-                    data: censusData.religion.data,
-                    backgroundColor: ['#F97316', '#16A34A', '#3B82F6', '#FACC15', '#6366F1', '#A855F7', '#64748B'],
-                    hoverOffset: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom', labels: { boxWidth: 15 } },
-                    tooltip: { callbacks: { label: (c) => `${c.label}: ${c.raw}%` } }
-                }
-            }
-        });
-    };
-
-    const renderScStChart = () => {
-        if (scstChartInstance.current) {
-            scstChartInstance.current.destroy();
-        }
-        const data = censusData.scst;
-        const ctx = scstChartRef.current.getContext('2d');
-        scstChartInstance.current = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: data.labels,
-                datasets: [
-                    {
-                        label: 'SC Population %',
-                        data: data.sc_percent,
-                        backgroundColor: '#6D28D9',
-                    },
-                    {
-                        label: 'ST Population %',
-                        data: data.st_percent,
-                        backgroundColor: '#DB2777',
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom' },
-                    tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${c.raw}%` } }
-                },
-                scales: {
-                    y: { beginAtZero: true, max: 100, ticks: { callback: (v) => v + '%' } },
-                    x: {}
-                }
-            }
-        });
-    };
-
-    useEffect(() => {
-        if (activeTab === 'population') {
-            renderPopulationChart(populationChartType);
-            renderDensityChart(densityChartType);
-        } else if (activeTab === 'literacy-gender') {
-            renderLiteracyChart(literacyChartType);
-            renderSexRatioChart(sexRatioChartType);
-        } else if (activeTab === 'socio-economic') {
-            renderRuralUrbanChart();
-            renderReligionChart();
-            renderScStChart();
-        }
-        // Cleanup charts on tab change or component unmount
-        return () => {
-            if (populationChartInstance.current) populationChartInstance.current.destroy();
-            if (densityChartInstance.current) densityChartInstance.current.destroy();
-            if (literacyChartInstance.current) literacyChartInstance.current.destroy();
-            if (sexRatioChartInstance.current) sexRatioChartInstance.current.destroy();
-            if (ruralUrbanChartInstance.current) ruralUrbanChartInstance.current.destroy();
-            if (religionChartInstance.current) religionChartInstance.current.destroy();
-            if (scstChartInstance.current) scstChartInstance.current.destroy();
-        };
-    }, [activeTab, populationChartType, densityChartType, literacyChartType, sexRatioChartType]);
-
-    const handleTabClick = (tabId) => {
-        setActiveTab(tabId);
-    };
-
-    const getButtonClasses = (currentType, buttonType) => {
-        return `px-4 py-2 rounded-md shadow hover:bg-teal-600 ${currentType === buttonType ? 'bg-teal-500 text-white' : 'bg-gray-300 text-gray-800 hover:bg-gray-400'}`;
-    };
+    const tabs = [
+        { key: 'most', label: 'Most Populous' },
+        { key: 'least', label: 'Least Populous' },
+        { key: 'densityHigh', label: 'Highest Density' },
+        { key: 'densityLow', label: 'Lowest Density' }
+    ];
 
     return (
-        <div className="w-screen p-4 md:p-8 bg-white ">
-            <header className="text-center mb-8">
-                <h1 className="text-3xl md:text-4xl font-bold text-gray-900">2011 India Census: Exam Prep Dashboard</h1>
-                <p className="text-md text-gray-600 mt-2">An interactive tool to master key data for the SSC CGL Exam.</p>
-            </header>
-
-            <nav className="flex justify-center border-b-2 border-gray-200 mb-8">
-                <button
-                    onClick={() => handleTabClick('overview')}
-                    className={`nav-link text-lg font-semibold border-b-4 border-transparent px-4 py-2 hover:text-teal-600 ${activeTab === 'overview' ? 'active text-teal-600 border-teal-500' : 'text-gray-500'}`}
-                >
-                    Overview
-                </button>
-                <button
-                    onClick={() => handleTabClick('population')}
-                    className={`nav-link text-lg font-semibold border-b-4 border-transparent px-4 py-2 hover:text-teal-600 ${activeTab === 'population' ? 'active text-teal-600 border-teal-500' : 'text-gray-500'}`}
-                >
-                    Population
-                </button>
-                <button
-                    onClick={() => handleTabClick('literacy-gender')}
-                    className={`nav-link text-lg font-semibold border-b-4 border-transparent px-4 py-2 hover:text-teal-600 ${activeTab === 'literacy-gender' ? 'active text-teal-600 border-teal-500' : 'text-gray-500'}`}
-                >
-                    Literacy & Gender
-                </button>
-                <button
-                    onClick={() => handleTabClick('socio-economic')}
-                    className={`nav-link text-lg font-semibold border-b-4 border-transparent px-4 py-2 hover:text-teal-600 ${activeTab === 'socio-economic' ? 'active text-teal-600 border-teal-500' : 'text-gray-500'}`}
-                >
-                    Socio-Economic
-                </button>
-            </nav>
-
-            <main>
-                {/* Overview Section */}
-                <section id="overview" className={`tab-content ${activeTab === 'overview' ? 'active' : ''}`}>
-                    <div className="text-center mb-8">
-                        <p className="text-lg text-gray-700">This section provides a snapshot of the most critical national-level figures from the 2011 Census. These are the foundational numbers essential for any exam preparation, offering a high-level view of India's demographic landscape.</p>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <div className="kpi-card bg-white p-6 rounded-xl shadow-md border border-gray-200">
-                            <h3 className="text-lg font-semibold text-gray-500">Total Population</h3>
-                            <p className="text-3xl font-bold text-teal-600 mt-2">1.21 Billion</p>
-                            <p className="text-sm text-gray-500 mt-1">(1,210,854,977)</p>
-                        </div>
-                        <div className="kpi-card bg-white p-6 rounded-xl shadow-md border border-gray-200">
-                            <h3 className="text-lg font-semibold text-gray-500">Decadal Growth (2001-11)</h3>
-                            <p className="text-3xl font-bold text-teal-600 mt-2">17.7%</p>
-                            <p className="text-sm text-gray-500 mt-1">A decline from 21.5% in the previous decade.</p>
-                        </div>
-                        <div className="kpi-card bg-white p-6 rounded-xl shadow-md border border-gray-200">
-                            <h3 className="text-lg font-semibold text-gray-500">Population Density</h3>
-                            <p className="text-3xl font-bold text-teal-600 mt-2">382 / km²</p>
-                            <p className="text-sm text-gray-500 mt-1">One of the highest in the world.</p>
-                        </div>
-                        <div className="kpi-card bg-white p-6 rounded-xl shadow-md border border-gray-200">
-                            <h3 className="text-lg font-semibold text-gray-500">Overall Sex Ratio</h3>
-                            <p className="text-3xl font-bold text-teal-600 mt-2">943</p>
-                            <p className="text-sm text-gray-500 mt-1">Females per 1000 males. An improvement from 933 in 2001.</p>
-                        </div>
-                        <div className="kpi-card bg-white p-6 rounded-xl shadow-md border border-gray-200">
-                            <h3 className="text-lg font-semibold text-gray-500">Overall Literacy Rate</h3>
-                            <p className="text-3xl font-bold text-teal-600 mt-2">74.04%</p>
-                            <p className="text-sm text-gray-500 mt-1">Male: 82.14%, Female: 65.46%</p>
-                        </div>
-                        <div className="kpi-card bg-white p-6 rounded-xl shadow-md border border-gray-200">
-                            <h3 className="text-lg font-semibold text-gray-500">Child Sex Ratio (0-6 Yrs)</h3>
-                            <p className="text-3xl font-bold text-red-500 mt-2">919</p>
-                            <p className="text-sm text-gray-500 mt-1">A decline from 927 in 2001, a key concern.</p>
-                        </div>
-                    </div>
-                    <div className="mt-8 bg-teal-50 border-l-4 border-teal-500 text-teal-800 p-6 rounded-r-lg">
-                        <h3 className="text-xl font-bold">Key Officials & Motto</h3>
-                        <p className="mt-2 text-lg"><strong>Registrar General & Census Commissioner:</strong> C. Chandra Mouli</p>
-                        <p className="mt-1 text-lg"><strong>Motto:</strong> "Our Census, Our Future"</p>
-                    </div>
-                </section>
-
-                {/* Population Section */}
-                <section id="population" className={`tab-content ${activeTab === 'population' ? 'active' : ''}`}>
-                    <div className="text-center mb-8">
-                        <p className="text-lg text-gray-700">Explore India's population distribution and density. This section allows you to interactively compare states, focusing on the rankings for most/least populous and highest/lowest density, which are common exam topics. Note the unique case of Nagaland's negative growth.</p>
-                    </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
-                            <h3 className="text-xl font-bold text-center text-gray-800 mb-4">State Population Comparison</h3>
-                            <div className="flex justify-center gap-4 mb-4">
-                                <button
-                                    onClick={() => setPopulationChartType('top')}
-                                    className={getButtonClasses(populationChartType, 'top')}
-                                >
-                                    Most Populous
-                                </button>
-                                <button
-                                    onClick={() => setPopulationChartType('bottom')}
-                                    className={getButtonClasses(populationChartType, 'bottom')}
-                                >
-                                    Least Populous
-                                </button>
-                            </div>
-                            <div className="chart-container"><canvas ref={populationChartRef}></canvas></div>
-                            <p id="populationChartInfo" className="text-center text-gray-600 mt-4 h-10">Hover over a bar to see details.</p>
-                        </div>
-                        <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
-                            <h3 className="text-xl font-bold text-center text-gray-800 mb-4">Population Density Comparison (Persons / km²)</h3>
-                            <div className="flex justify-center gap-4 mb-4">
-                                <button
-                                    onClick={() => setDensityChartType('top')}
-                                    className={getButtonClasses(densityChartType, 'top')}
-                                >
-                                    Highest Density
-                                </button>
-                                <button
-                                    onClick={() => setDensityChartType('bottom')}
-                                    className={getButtonClasses(densityChartType, 'bottom')}
-                                >
-                                    Lowest Density
-                                </button>
-                            </div>
-                            <div className="chart-container"><canvas ref={densityChartRef}></canvas></div>
-                            <p id="densityChartInfo" className="text-center text-gray-600 mt-4 h-10">Hover over a bar to see details.</p>
-                        </div>
-                    </div>
-                    <div className="mt-8 bg-red-50 border-l-4 border-red-500 text-red-800 p-6 rounded-r-lg">
-                        <h3 className="text-xl font-bold">Unique Fact: Negative Growth State</h3>
-                        <p className="mt-2 text-lg"><strong>Nagaland</strong> is the only state that recorded a negative decadal population growth rate of <strong>-0.6%</strong> between 2001 and 2011. This is a crucial point for exams.</p>
-                    </div>
-                </section>
-
-                {/* Literacy & Gender Section */}
-                <section id="literacy-gender" className={`tab-content ${activeTab === 'literacy-gender' ? 'active' : ''}`}>
-                    <div className="text-center mb-8">
-                        <p className="text-lg text-gray-700">This section visualizes literacy rates and sex ratios, key indicators of social development. Use the interactive charts to compare states, understand gender gaps, and identify the top and bottom performers—all critical for SSC CGL preparation.</p>
-                    </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
-                            <h3 className="text-xl font-bold text-center text-gray-800 mb-4">Literacy Rate Comparison (%)</h3>
-                            <div className="flex justify-center gap-4 mb-4">
-                                <button
-                                    onClick={() => setLiteracyChartType('top')}
-                                    className={getButtonClasses(literacyChartType, 'top')}
-                                >
-                                    Highest Literacy
-                                </button>
-                                <button
-                                    onClick={() => setLiteracyChartType('bottom')}
-                                    className={getButtonClasses(literacyChartType, 'bottom')}
-                                >
-                                    Lowest Literacy
-                                </button>
-                            </div>
-                            <div className="chart-container"><canvas ref={literacyChartRef}></canvas></div>
-                            <p id="literacyChartInfo" className="text-center text-gray-600 mt-4 h-10">Hover over a bar to see gender-wise breakdown.</p>
-                        </div>
-                        <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
-                            <h3 className="text-xl font-bold text-center text-gray-800 mb-4">Sex Ratio Comparison (Females per 1000 Males)</h3>
-                            <div className="flex justify-center gap-4 mb-4">
-                                <button
-                                    onClick={() => setSexRatioChartType('top')}
-                                    className={getButtonClasses(sexRatioChartType, 'top')}
-                                >
-                                    Highest Sex Ratio
-                                </button>
-                                <button
-                                    onClick={() => setSexRatioChartType('bottom')}
-                                    className={getButtonClasses(sexRatioChartType, 'bottom')}
-                                >
-                                    Lowest Sex Ratio
-                                </button>
-                            </div>
-                            <div className="chart-container"><canvas ref={sexRatioChartRef}></canvas></div>
-                            <p id="sexRatioChartInfo" className="text-center text-gray-600 mt-4 h-10">Hover over a bar to see child sex ratio.</p>
-                        </div>
-                    </div>
-                </section>
-
-                {/* Socio-Economic Section */}
-                <section id="socio-economic" className={`tab-content ${activeTab === 'socio-economic' ? 'active' : ''}`}>
-                    <div className="text-center mb-8">
-                        <p className="text-lg text-gray-700">Delve into India's socio-economic fabric, including the rural-urban divide, religious composition, and community-wise population stats. These doughnut charts provide a clear, proportional view of key societal structures, which are important for a holistic understanding.</p>
-                    </div>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
-                            <h3 className="text-xl font-bold text-center text-gray-800 mb-4">Rural vs. Urban Population Split</h3>
-                            <div className="chart-container h-80"><canvas ref={ruralUrbanChartRef}></canvas></div>
-                            <div className="mt-4 text-center">
-                                <p className="text-lg">Most urbanized state: <strong>Goa (62.2%)</strong></p>
-                                <p className="text-lg">Highest rural population %: <strong>Himachal Pradesh (89.97%)</strong></p>
-                            </div>
-                        </div>
-                        <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
-                            <h3 className="text-xl font-bold text-center text-gray-800 mb-4">Religious Composition (%)</h3>
-                            <div className="chart-container h-80"><canvas ref={religionChartRef}></canvas></div>
-                            <div className="mt-4 text-center">
-                                <p className="text-lg">Largest Tribal Group: <strong>Bhil</strong></p>
-                                <p className="text-lg">Most Spoken Language: <strong>Hindi</strong></p>
-                            </div>
-                        </div>
-                        <div className="bg-white p-6 rounded-xl shadow-md border border-gray-200 lg:col-span-2">
-                            <h3 className="text-xl font-bold text-center text-gray-800 mb-4">SC & ST Population (%)</h3>
-                            <div className="chart-container"><canvas ref={scstChartRef}></canvas></div>
-                            <div className="mt-4 text-center">
-                                <p className="text-lg">State with highest SC %: <strong>Punjab (31.9%)</strong> | State with highest ST %: <strong>Mizoram (94.4%)</strong></p>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            </main>
-        </div>
+        <ContentSection
+            title="Population Dynamics"
+            description="Explore the distribution of India's population. This section visualizes the states with the highest and lowest populations and population densities, highlighting the significant regional disparities across the nation."
+        >
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                <div className="flex justify-center mb-4 border border-stone-200 rounded-lg p-1 w-max mx-auto">
+                    {tabs.map(tab => (
+                        <button
+                            key={tab.key}
+                            onClick={() => setChartType(tab.key)}
+                            className={`tab-button px-4 py-2 text-sm font-semibold rounded-md ${chartType === tab.key ? 'active' : ''}`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+                <div className="chart-container">
+                    <Bar data={data} options={options} />
+                </div>
+                <p className="text-center text-stone-600 mt-4 text-sm">{chartData.info}</p>
+            </div>
+        </ContentSection>
     );
 };
 
-export default App;
+const GenderLiteracySection = () => {
+    const [metric, setMetric] = useState('sexRatio');
+    const chartConfig = useMemo(() => {
+        const selectedData = censusData.genderLiteracy[metric];
+        if (metric === 'maleFemaleLiteracy') {
+            return {
+                type: 'bar',
+                data: {
+                    labels: selectedData.labels,
+                    datasets: selectedData.datasets
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, suggestedMax: 100, title: { display: true, text: 'Literacy Rate (%)'} }, x: { title: { display: true, text: 'Region'} } },
+                    plugins: { legend: { position: 'top' } }
+                },
+                info: selectedData.info
+            };
+        }
+        return {
+            type: 'bar',
+            data: {
+                labels: selectedData.labels,
+                datasets: [{
+                    label: metric,
+                    data: selectedData.data,
+                    backgroundColor: 'rgba(255, 99, 132, 0.7)',
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: false } }
+            },
+            info: selectedData.info
+        };
+    }, [metric]);
+
+
+    return (
+        <ContentSection
+            title="Gender & Literacy"
+            description="Analyze key social indicators like sex ratio and literacy rates. Use the dropdown to switch between different metrics and compare state-wise performance. This section highlights progress and persistent challenges, like the declining child sex ratio."
+        >
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                <div className="flex items-center justify-center mb-4">
+                    <label htmlFor="genderLiteracySelector" className="mr-2 text-sm font-semibold">Select Metric:</label>
+                    <select
+                        id="genderLiteracySelector"
+                        value={metric}
+                        onChange={(e) => setMetric(e.target.value)}
+                        className="p-2 border border-stone-300 rounded-lg text-sm"
+                    >
+                        <option value="sexRatio">Overall Sex Ratio</option>
+                        <option value="childSexRatio">Child Sex Ratio (0-6 Yrs)</option>
+                        <option value="literacyRate">Overall Literacy Rate</option>
+                        <option value="maleFemaleLiteracy">Male vs Female Literacy</option>
+                    </select>
+                </div>
+                <div className="chart-container">
+                    <Bar data={chartConfig.data} options={chartConfig.options} />
+                </div>
+                <p className="text-center text-stone-600 mt-4 text-sm">{chartConfig.info}</p>
+            </div>
+        </ContentSection>
+    );
+};
+
+const SocioEconomicSection = () => {
+    const religionData = {
+        labels: censusData.socioEconomic.religion.labels,
+        datasets: [{
+            data: censusData.socioEconomic.religion.data,
+            backgroundColor: ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#64748b', '#a8a29e']
+        }]
+    };
+    const languageData = {
+        labels: censusData.socioEconomic.language.labels,
+        datasets: [{
+            label: '% of Population',
+            data: censusData.socioEconomic.language.data,
+            backgroundColor: 'rgba(59, 130, 246, 0.7)'
+        }]
+    };
+
+    return (
+        <ContentSection
+            title="Socio-Economic Fabric"
+            description="Delve into the socio-economic composition of India, including religious and linguistic diversity, the distribution of Scheduled Castes (SC) and Scheduled Tribes (ST), and worker participation rates. These charts illustrate the complex tapestry of Indian society."
+        >
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                    <h3 className="text-lg font-bold text-center mb-2">Religious Composition (%)</h3>
+                    <div className="chart-container h-80 max-h-[35vh]">
+                        <Doughnut data={religionData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }} />
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                    <h3 className="text-lg font-bold text-center mb-2">Top 5 Spoken Languages</h3>
+                    <div className="chart-container h-80 max-h-[35vh]">
+                        <Bar data={languageData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }} />
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-stone-200 col-span-1 lg:col-span-2">
+                    <h3 className="text-lg font-bold text-center mb-2">SC & ST Population Highlights</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-center">
+                        {/* Data points are hardcoded as they are static facts */}
+                        <div><p className="font-semibold text-stone-500">Highest SC Population</p><p className="text-xl font-bold text-teal-600">Uttar Pradesh</p><p className="text-xs text-stone-500">(in numbers)</p></div>
+                        <div><p className="font-semibold text-stone-500">Highest SC Population</p><p className="text-xl font-bold text-teal-600">Punjab (31.9%)</p><p className="text-xs text-stone-500">(in %)</p></div>
+                        <div><p className="font-semibold text-stone-500">Highest ST Population</p><p className="text-xl font-bold text-amber-600">Madhya Pradesh</p><p className="text-xs text-stone-500">(in numbers)</p></div>
+                        <div><p className="font-semibold text-stone-500">Highest ST Population</p><p className="text-xl font-bold text-amber-600">Lakshadweep (94.8%)</p><p className="text-xs text-stone-500">(in %)</p></div>
+                    </div>
+                </div>
+            </div>
+        </ContentSection>
+    );
+};
+
+const RuralUrbanSection = () => {
+    const ruralUrbanData = {
+        labels: censusData.ruralUrban.labels,
+        datasets: [{
+            data: censusData.ruralUrban.data,
+            backgroundColor: ['#f59e0b', '#10b981']
+        }]
+    };
+    
+    const deprivationFacts = [
+        "10.74 crore households (out of 17.97 cr) were considered deprived.",
+        "29.97% of rural households were landless and earned from manual labor.",
+        "74.5% of rural households had a highest earner with a monthly income under ₹5,000.",
+        "51.14% of rural households depended on manual casual labor for income.",
+        "Only 4.6% of rural households paid income tax."
+    ];
+
+    return (
+        <ContentSection
+            title="Rural-Urban Divide"
+            description="Understand the distribution of India's population between rural and urban areas. This section also presents stark findings from the Socio-Economic and Caste Census (SECC) 2011, revealing the extent of deprivation in rural India."
+        >
+             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-stone-200 flex flex-col justify-center">
+                    <h3 className="text-lg font-bold text-center mb-2">Population Split: Rural vs Urban</h3>
+                    <div className="chart-container h-80 max-h-[35vh]">
+                        <Pie data={ruralUrbanData} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }} />
+                    </div>
+                    <div className="flex justify-around mt-4 text-center">
+                        <div><p className="font-bold text-teal-600 text-lg">Goa</p><p className="text-sm text-stone-500">Most Urbanized State</p></div>
+                        <div><p className="font-bold text-amber-600 text-lg">Bihar</p><p className="text-sm text-stone-500">Most Rural State</p></div>
+                    </div>
+                </div>
+                <div className="lg:col-span-3 bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                    <h3 className="text-lg font-bold mb-4">SECC 2011: Rural Deprivation Facts</h3>
+                    <ul className="space-y-3 text-stone-700">
+                        {deprivationFacts.map((fact, index) => (
+                            <li key={index} className="flex items-start">
+                                <span className="text-rose-500 font-bold text-xl mr-3">●</span>
+                                <div dangerouslySetInnerHTML={{ __html: fact.replace(/(\d+(\.\d+)?%?)/g, '<strong class="font-semibold">$1</strong>') }} />
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
+        </ContentSection>
+    );
+};
+
+const ExamCornerSection = () => (
+    <ContentSection
+        title="⭐ Exam Corner: Key Facts to Remember"
+        description="This is your quick-revision hub. It consolidates the most critical rankings and unique facts from the 2011 Census that are frequently asked in the SSC CGL exam. Focus on memorizing these points."
+    >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                <h3 className="text-lg font-bold mb-3 text-teal-700">Population</h3>
+                <ul className="space-y-2 text-sm list-disc list-inside">
+                    <li><strong>Most Populous State:</strong> Uttar Pradesh</li>
+                    <li><strong>Least Populous State:</strong> Sikkim</li>
+                    <li><strong>Highest Density (UT):</strong> Delhi</li>
+                    <li><strong>Highest Density (State):</strong> Bihar</li>
+                    <li><strong>Lowest Density:</strong> Arunachal Pradesh</li>
+                    <li><strong>Negative Growth:</strong> Nagaland</li>
+                </ul>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                <h3 className="text-lg font-bold mb-3 text-rose-700">Sex Ratio</h3>
+                <ul className="space-y-2 text-sm list-disc list-inside">
+                    <li><strong>India's Overall:</strong> 940</li>
+                    <li><strong>Highest (State):</strong> Kerala (1084)</li>
+                    <li><strong>Lowest (State):</strong> Haryana (879)</li>
+                    <li><strong>India's Child (0-6):</strong> 914 (Declined)</li>
+                    <li><strong>Highest Child (State):</strong> Mizoram (971)</li>
+                    <li><strong>Lowest Child (State):</strong> Haryana (830)</li>
+                </ul>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-stone-200">
+                <h3 className="text-lg font-bold mb-3 text-sky-700">Literacy</h3>
+                <ul className="space-y-2 text-sm list-disc list-inside">
+                    <li><strong>India's Overall:</strong> 74.04%</li>
+                    <li><strong>Highest (State):</strong> Kerala (94%)</li>
+                    <li><strong>Lowest (State):</strong> Bihar (61.8%)</li>
+                    <li><strong>Highest Female Literacy:</strong> Kerala (92.1%)</li>
+                    <li><strong>Lowest Female Literacy:</strong> Bihar (51.5%)</li>
+                </ul>
+            </div>
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-stone-200 md:col-span-2 lg:col-span-3">
+                <h3 className="text-lg font-bold mb-3 text-amber-700">Social & Economic</h3>
+                <ul className="space-y-2 text-sm list-disc list-inside grid grid-cols-1 md:grid-cols-2">
+                    <li><strong>Most Urbanized State:</strong> Goa</li>
+                    <li><strong>Most Rural State:</strong> Bihar</li>
+                    <li><strong>Highest SC %:</strong> Punjab</li>
+                    <li><strong>Highest ST %:</strong> Lakshadweep / Mizoram</li>
+                    <li><strong>Largest Tribal Group:</strong> Bhil</li>
+                    <li><strong>Most Spoken Language:</strong> Hindi</li>
+                    <li><strong>Second Most Spoken:</strong> Bengali</li>
+                    <li><strong>New Religion Category:</strong> "No Religion"</li>
+                </ul>
+            </div>
+        </div>
+    </ContentSection>
+);
+
+
+// --- Main App Component ---
+export default function App() {
+    // State to manage which section is currently visible
+    const [activeSection, setActiveSection] = useState('overview');
+
+    // A map to easily render the correct component based on state
+    const sections = {
+        overview: <OverviewSection />,
+        population: <PopulationSection />,
+        'gender-literacy': <GenderLiteracySection />,
+        'socio-economic': <SocioEconomicSection />,
+        'rural-urban': <RuralUrbanSection />,
+        'exam-corner': <ExamCornerSection />,
+    };
+
+    const navItems = [
+        { id: 'overview', label: '📋 National Overview' },
+        { id: 'population', label: '📊 Population Dynamics' },
+        { id: 'gender-literacy', label: '♀️♂️ Gender & Literacy' },
+        { id: 'socio-economic', label: '🏗️ Socio-Economic' },
+        { id: 'rural-urban', label: '🏘️ Rural-Urban Divide' },
+        { id: 'exam-corner', label: '⭐ Exam Corner' }
+    ];
+
+    return (
+        <>
+            {/* Injecting CSS styles directly for self-containment */}
+            <style>{`
+                body { font-family: 'Inter', sans-serif; }
+                .chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 350px; max-height: 45vh; }
+                @media (max-width: 768px) { .chart-container { height: 300px; max-height: 50vh; } }
+                .nav-link { transition: all 0.2s ease-in-out; }
+                .nav-link.active { background-color: #0d9488; color: white; transform: translateX(4px); }
+                .tab-button { transition: all 0.2s ease-in-out; }
+                .tab-button.active { background-color: #0d9488; color: white; }
+            `}</style>
+            
+            <div className="flex min-h-screen bg-stone-50 text-stone-800">
+                {/* Sidebar Navigation */}
+                <nav className="w-64 bg-white p-4 shadow-lg fixed h-full">
+                    <h1 className="text-xl font-bold text-teal-700 mb-2">Census 2011</h1>
+                    <p className="text-sm text-stone-500 mb-6">SSC CGL Exam Prep</p>
+                    <ul className="space-y-2">
+                        {navItems.map(item => (
+                            <li key={item.id}>
+                                <a
+                                    href={`#${item.id}`}
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        setActiveSection(item.id);
+                                    }}
+                                    className={`nav-link flex items-center p-2 rounded-lg hover:bg-teal-50 ${activeSection === item.id ? 'active' : ''}`}
+                                >
+                                    {item.label}
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
+                    <div className="absolute bottom-4 text-xs text-stone-400 px-2">
+                        <p>Motto: "Our Census, Our Future"</p>
+                        <p>Commissioner: C. Chandramouli</p>
+                    </div>
+                </nav>
+
+                {/* Main Content Area */}
+                <main className="ml-64 flex-1 p-4 sm:p-6 lg:p-8">
+                    {sections[activeSection]}
+                </main>
+            </div>
+        </>
+    );
+}
