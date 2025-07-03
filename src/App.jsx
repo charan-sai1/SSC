@@ -15,7 +15,7 @@ import { SlTarget } from "react-icons/sl";
 function App() {
   // Your menu items
 const items = [
-  { name: "Current", label: "Current Affairs", route: "/current", icon: <FaGlobe /> },
+  { name: "Current Affairs (2024-25)", label: "Current Affairs", route: "/current", icon: <FaGlobe /> },
   { name: "Five Plans", label: "Five Year Plans", route: "/five", icon: <SlTarget /> },
   { name: "Senus 2011", label: "Senus 2011", route: "/sensus", icon: <FaPeopleGroup /> }
 ];
