@@ -26,9 +26,9 @@ const items = [
         <SideBar items={items} />
 
           <Routes>
-            <Route path="/current" element={<Current />} />
-            <Route path="/five" element={<Five />} />
-            <Route path="/sensus" element={<Sensus />} />
+            <Route path="/SSC/current" element={<Current />} />
+            <Route path="/SSC/five" element={<Five />} />
+            <Route path="/SSC/sensus" element={<Sensus />} />
             <Route path="/*" element={
               <>
               <div className="w-screen h-f flex flex-col justify-center items-center">
